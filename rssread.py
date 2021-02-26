@@ -16,6 +16,7 @@
 # get last 3 posts
 # example: rssread.py -feed "https://hnrss.org/frontpage" --number 3
 # example: rssread.py -feed https://feed1.io https://feed2.com --today -n 10
+# example: rssread.py -f http://feed.com -b 2021-02-20 -e 2021-02-20 -n 1000
 
 # install dependencies: e.g. similar to:
 # pip3 install --user --upgrade feedparser
@@ -67,13 +68,14 @@ def get_date(entries):
     return dop_date
 
 
-def get_news(entries, noe, fromday, parsed_url, proxyindicator):  # noqa
+def get_news(  # noqa
+    entries, noe, fromday, uptoday, parsed_url, proxyindicator
+):
     """Get the title, link and summary of the news."""
     for i in range(0, noe):
-        if "DEBUG" in os.environ:
-            print("\nEntry:: {} \n\n".format(entries[i]))
+        logger.debug(f"\nEntry:: {entries[i]} \n\n")
         dop_date = get_date(entries[i])
-        if dop_date >= fromday:
+        if dop_date >= fromday and dop_date <= uptoday:
             try:
                 title = entries[i]["title"]
             except Exception:
@@ -173,7 +175,7 @@ def get_news(entries, noe, fromday, parsed_url, proxyindicator):  # noqa
             )
 
 
-def parse_url(urls, noe, fromday):
+def parse_url(urls, noe, fromday, uptoday):
     """Parse the URLs with feedparser."""
     if args.tor:
         if os.name == "nt":
@@ -204,7 +206,7 @@ def parse_url(urls, noe, fromday):
         entries = parsed_url.entries
         max = len(entries)
         noe = min(noe, max)
-        get_news(entries, noe, fromday, parsed_url, proxyindicator)
+        get_news(entries, noe, fromday, uptoday, parsed_url, proxyindicator)
 
 
 # main
@@ -272,6 +274,26 @@ if __name__ == "__main__":  # noqa
         type=int,
         help="Number of last entries to get from from RSS feed. Default is 3.",
     )
+    ap.add_argument(
+        "-b",  # beginning
+        "--from-day",
+        required=False,
+        type=str,
+        help=(
+            "Specify a 'from' date, i.e. an earliest day allowed. "
+            "Specify in format YYYY-MM-DD such as 2021-02-25."
+        ),
+    )
+    ap.add_argument(
+        "-e",  # end
+        "--to-day",
+        required=False,
+        type=str,
+        help=(
+            "Specify a 'to' date, i.e. a latest day allowed. "
+            "Specify in format YYYY-MM-DD such as 2021-02-26."
+        ),
+    )
     args = ap.parse_args()
     if args.debug:
         logging.getLogger().setLevel(
@@ -288,15 +310,27 @@ if __name__ == "__main__":  # noqa
 
     noe = 3  # default: get last 3 posts
     fromday = ayearago
+    uptoday = today
     if args.number:
         noe = args.number
     if args.today:
         fromday = today  # all entries of today
     if args.yesterday:
         fromday = yesterday  # all entries of yesterday
+        uptoday = yesterday
+
+    if args.from_day:
+        fromday = date.fromisoformat(args.from_day)
+    if args.to_day:
+        uptoday = date.fromisoformat(args.to_day)
+
+    logger.debug(f"feed(s): {args.feed}")
+    logger.debug(f"number: {noe}")
+    logger.debug(f"from day: {fromday}")
+    logger.debug(f"up to day: {uptoday}")
 
     try:
-        parse_url(args.feed, noe, fromday)
+        parse_url(args.feed, noe, fromday, uptoday)
     except requests.exceptions.ConnectionError as e:
         if args.tor:
             print(
