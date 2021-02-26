@@ -1,3 +1,5 @@
+![RSS Feed icon](https://upload.wikimedia.org/wikipedia/en/thumb/4/43/Feed-icon.svg/128px-Feed-icon.svg.png)
+
 # rssread
 Python program to read and parse RSS feeds from command line (CLI).
 
